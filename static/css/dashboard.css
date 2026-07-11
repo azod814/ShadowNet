@@ -1,0 +1,95 @@
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #343a40;
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.btn-primary {
+    background-color: #343a40;
+    border-color: #343a40;
+}
+
+.btn-primary:hover {
+    background-color: #212529;
+    border-color: #212529;
+}
+
+.victim-card {
+    transition: transform 0.3s;
+    cursor: pointer;
+}
+
+.victim-card:hover {
+    transform: translateY(-5px);
+}
+
+.permission-dialog {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 350px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: none;
+    padding: 16px;
+}
+
+.permission-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.permission-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+}
+
+.permission-title {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.permission-message {
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #333;
+}
+
+.permission-buttons {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.permission-btn {
+    padding: 8px 16px;
+    margin-left: 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.allow-btn {
+    background-color: #4285f4;
+    color: white;
+}
+
+.block-btn {
+    background-color: #f1f3f4;
+    color: #3c4043;
+}
