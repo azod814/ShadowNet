@@ -3,93 +3,182 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
 .card {
-    border: none;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
 }
 
 .card-header {
     background-color: #343a40;
     color: white;
     border-radius: 10px 10px 0 0 !important;
-}
-
-.btn-primary {
-    background-color: #343a40;
-    border-color: #343a40;
-}
-
-.btn-primary:hover {
-    background-color: #212529;
-    border-color: #212529;
+    font-weight: 600;
 }
 
 .victim-card {
-    transition: transform 0.3s;
-    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .victim-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
-.permission-dialog {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 350px;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    display: none;
-    padding: 16px;
+.activity-log {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
 }
 
-.permission-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
+.activity-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #e9ecef;
 }
 
-.permission-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 12px;
+.activity-item:last-child {
+    border-bottom: none;
 }
 
-.permission-title {
-    font-weight: 600;
-    font-size: 16px;
-}
-
-.permission-message {
-    margin-bottom: 16px;
-    font-size: 14px;
-    color: #333;
-}
-
-.permission-buttons {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.permission-btn {
-    padding: 8px 16px;
-    margin-left: 8px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.allow-btn {
+.btn-primary {
     background-color: #4285f4;
+    border-color: #4285f4;
+}
+
+.btn-primary:hover {
+    background-color: #3367d6;
+    border-color: #3367d6;
+}
+
+.btn-success {
+    background-color: #34a853;
+    border-color: #34a853;
+}
+
+.btn-success:hover {
+    background-color: #2d8e47;
+    border-color: #2d8e47;
+}
+
+.btn-danger {
+    background-color: #ea4335;
+    border-color: #ea4335;
+}
+
+.btn-danger:hover {
+    background-color: #d23321;
+    border-color: #d23321;
+}
+
+.form-control:focus {
+    border-color: #4285f4;
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.25);
+}
+
+.spinner-border {
+    color: #4285f4;
+}
+
+.result-container {
+    background-color: #e8f0fe;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.result-url {
+    font-family: monospace;
+    background-color: white;
+    border: 1px solid #dadce0;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.media-modal {
+    max-width: 800px;
+}
+
+.media-modal img {
+    max-width: 100%;
+    border-radius: 5px;
+}
+
+.permission-status {
+    font-weight: 600;
+}
+
+.permission-status.granted {
+    color: #34a853;
+}
+
+.permission-status.denied {
+    color: #ea4335;
+}
+
+.media-status {
+    font-weight: 600;
+}
+
+.media-status.active {
+    color: #34a853;
+}
+
+.media-status.inactive {
+    color: #ea4335;
+}
+
+.stats-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.stats-card p {
+    color: #5f6368;
+    margin-bottom: 0;
+}
+
+.stats-icon {
+    font-size: 2rem;
+    color: #4285f4;
+    margin-bottom: 10px;
+}
+
+.footer {
+    background-color: #343a40;
+    color: white;
+    padding: 20px 0;
+    margin-top: 50px;
+}
+
+.footer a {
     color: white;
 }
 
-.block-btn {
-    background-color: #f1f3f4;
-    color: #3c4043;
+.footer a:hover {
+    color: #4285f4;
+}
+
+@media (max-width: 768px) {
+    .stats-card {
+        margin-bottom: 10px;
+    }
+    
+    .media-modal {
+        max-width: 100%;
+    }
 }
