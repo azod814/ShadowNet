@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
     <title>
-        {{ page.get("title", "ShadowNet Preview") if page else "ShadowNet Preview" }}
+        ShadowNet Preview
     </title>
 
     <style>
@@ -17,48 +19,37 @@
         body {
             margin: 0;
             background: #eef2f7;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family:
+                Arial,
+                sans-serif;
         }
 
         .preview-bar {
-            position: fixed;
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
             z-index: 9999;
-
-            height: 64px;
 
             display: flex;
             justify-content: space-between;
             align-items: center;
 
-            padding: 0 24px;
+            min-height: 56px;
 
-            background: rgba(255, 255, 255, 0.96);
-            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 20px;
 
-            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+            background: #ffffff;
+
+            border-bottom:
+                1px solid #dfe5ee;
+
+            box-shadow:
+                0 4px 20px
+                rgba(15, 23, 42, 0.06);
         }
 
         .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-
-            font-size: 16px;
             font-weight: 800;
             color: #172033;
-        }
-
-        .logo-dot {
-            width: 10px;
-            height: 10px;
-
-            border-radius: 50%;
-            background: #5b6cff;
-
-            box-shadow: 0 0 0 5px rgba(91, 108, 255, 0.12);
         }
 
         .brand span {
@@ -66,74 +57,40 @@
         }
 
         .status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            overflow: hidden;
+
+            max-width: 50%;
 
             color: #64748b;
+
+            text-overflow: ellipsis;
+            white-space: nowrap;
+
             font-size: 13px;
-            font-weight: 600;
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-
-            border-radius: 50%;
-            background: #22c55e;
-        }
-
-        .preview-container {
-            padding-top: 64px;
-            width: 100%;
-            height: 100vh;
         }
 
         iframe {
             display: block;
 
             width: 100%;
-            height: calc(100vh - 64px);
+            height: calc(100vh - 56px);
 
             border: none;
+
             background: #ffffff;
         }
 
-        .error-box {
-            min-height: calc(100vh - 64px);
-
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-
-            text-align: center;
-            color: #64748b;
-
-            padding: 30px;
-        }
-
-        .error-box h2 {
-            margin: 0 0 10px;
-            color: #172033;
-        }
-
-        .error-box p {
-            margin: 0;
-        }
-
         @media (max-width: 600px) {
+
             .preview-bar {
-                padding: 0 15px;
+                padding: 12px 14px;
             }
 
             .status {
-                font-size: 11px;
+                max-width: 45%;
+                font-size: 12px;
             }
 
-            .brand {
-                font-size: 14px;
-            }
         }
     </style>
 </head>
@@ -143,45 +100,20 @@
     <div class="preview-bar">
 
         <div class="brand">
-            <div class="logo-dot"></div>
-
-            <div>
-                Shadow<span>Net</span>
-                · Local Preview
-            </div>
+            Shadow<span>Net</span>
+            · Local Preview
         </div>
 
         <div class="status">
-            <div class="status-dot"></div>
-
-            {% if page %}
-                {{ page.get("title", "Preview Ready") }}
-            {% else %}
-                Preview Ready
-            {% endif %}
+            {{ page["title"] }}
         </div>
 
     </div>
 
 
-    <div class="preview-container">
-
-        {% if project_id and page and page.get("id") %}
-
-            <iframe
-                src="{{ url_for('preview_page', project_id=project_id, page_id=page.get('id')) }}">
-            </iframe>
-
-        {% else %}
-
-            <div class="error-box">
-                <h2>Preview not available</h2>
-                <p>Project or page information is missing.</p>
-            </div>
-
-        {% endif %}
-
-    </div>
+    <iframe
+        src="{{ page_preview_url }}">
+    </iframe>
 
 </body>
 </html>
