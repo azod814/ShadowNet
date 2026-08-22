@@ -285,7 +285,12 @@ def fetch_page(url):
 
 @app.route("/")
 def dashboard():
-    return render_template("dashboard.html")
+    page = {
+        "title": "ShadowNet Dashboard",
+        "description": "Website Clone & Security Awareness Tool"
+    }
+
+    return render_template("dashboard.html", page=page)
 
 
 @app.route("/api/analyze", methods=["POST"])
