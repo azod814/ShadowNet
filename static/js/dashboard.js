@@ -1,238 +1,788 @@
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("🟢 Dashboard JS Loaded!"); // <-- DEBUG 1
-    
-    const socket = io();
-    
-    // Create form submission
-    const createForm = document.getElementById('create-form');
-    console.log("🔍 Form found:", createForm); // <-- DEBUG 2
+document.addEventListener("DOMContentLoaded", () => {
 
-    if (createForm) {
-        createForm.addEventListener('submit', function(e) {
-            console.log("✅ Form submitted!"); // <-- DEBUG 3
-            e.preventDefault();
-            
-            const targetUrl = document.getElementById('target-url').value;
-            console.log("🔍 Target URL from input:", targetUrl); // <-- DEBUG 4
-            
-            const btn = this.querySelector('button[type="submit"]');
-            const originalText = btn.textContent;
-            
-            btn.textContent = 'Creating...';
-            btn.disabled = true;
-            
-            const formData = new FormData();
-            formData.append('target_url', targetUrl);
+    const analyzeForm =
+        document.getElementById("analyzeForm");
 
-            fetch('/create', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                console.log("📡 Received response from server, status:", response.status); // <-- DEBUG 5
-                return response.json();
-            })
-            .then(data => {
-                console.log("📡 Response JSON from server:", data); // <-- DEBUG 6
-                if (data.success) {
-                    document.getElementById('result-url').value = window.location.origin + data.url;
-                    document.getElementById('result-container').classList.remove('d-none');
-                    document.getElementById('placeholder').classList.add('d-none');
-                    
-                    showNotification('Phishing page created successfully!', 'success');
-                    
-                    // Focus the input field
-                    document.getElementById('result-url').focus();
-                    document.getElementById('result-url').select();
-                } else {
-                    console.error("🔥 Server returned an error:", data.error); // <-- DEBUG 7
-                    showNotification('Error: ' + data.error, 'danger');
-                    document.getElementById('placeholder').classList.remove('d-none');
-                }
-            })
-            .catch(error => {
-                console.error('🔥 Fetch error:', error); // <-- DEBUG 8
-                showNotification('Connection error. Check console.', 'danger');
-                document.getElementById('placeholder').classList.remove('d-none');
-            })
-            .finally(() => {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            });
+    const targetUrl =
+        document.getElementById("targetUrl");
+
+    const analyzeBtn =
+        document.getElementById("analyzeBtn");
+
+    const projectsGrid =
+        document.getElementById("projectsGrid");
+
+    const emptyState =
+        document.getElementById("emptyState");
+
+    const resultSection =
+        document.getElementById("resultSection");
+
+    const refreshBtn =
+        document.getElementById("refreshBtn");
+
+    const aboutBtn =
+        document.getElementById("aboutBtn");
+
+    const aboutModal =
+        document.getElementById("aboutModal");
+
+    const closeAbout =
+        document.getElementById("closeAbout");
+
+
+    let currentProject = null;
+
+
+    /* ----------------------------
+       PROJECT ANALYSIS
+    ----------------------------- */
+
+    analyzeForm.addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+        const url = targetUrl.value.trim();
+
+        if (!url) {
+            showToast(
+                "Please enter a website URL.",
+                "error"
+            );
+
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+
+            const response =
+                await fetch("/api/analyze", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        url: url
+                    })
+
+                });
+
+            const data =
+                await response.json();
+
+            if (!data.success) {
+                throw new Error(
+                    data.error ||
+                    "Website analysis failed."
+                );
+            }
+
+            currentProject = data;
+
+            renderResult(data);
+
+            targetUrl.value = "";
+
+            showToast(
+                "Website analysis completed successfully.",
+                "success"
+            );
+
+            loadProjects();
+
+        } catch (error) {
+
+            showToast(
+                error.message ||
+                "Something went wrong.",
+                "error"
+            );
+
+        } finally {
+
+            setLoading(false);
+
+        }
+
+    });
+
+
+    /* ----------------------------
+       LOADING STATE
+    ----------------------------- */
+
+    function setLoading(loading) {
+
+        const btnText =
+            analyzeBtn.querySelector(".btn-text");
+
+        const btnLoader =
+            analyzeBtn.querySelector(".btn-loader");
+
+        analyzeBtn.disabled = loading;
+
+        btnText.classList.toggle(
+            "hidden",
+            loading
+        );
+
+        btnLoader.classList.toggle(
+            "hidden",
+            !loading
+        );
+
+    }
+
+
+    /* ----------------------------
+       RESULT RENDER
+    ----------------------------- */
+
+    function renderResult(data) {
+
+        resultSection.classList.remove(
+            "hidden"
+        );
+
+        document.getElementById(
+            "resultTitle"
+        ).textContent =
+            data.title ||
+            "Website Replica Ready";
+
+        document.getElementById(
+            "resultUrl"
+        ).textContent =
+            data.source_url;
+
+        document.getElementById(
+            "resultPages"
+        ).textContent =
+            data.pages_count;
+
+        document.getElementById(
+            "resultAssets"
+        ).textContent =
+            data.assets_count;
+
+
+        const previewUrl =
+            window.location.origin +
+            data.preview_url;
+
+
+        const openPreviewBtn =
+            document.getElementById(
+                "openPreviewBtn"
+            );
+
+        openPreviewBtn.href =
+            data.preview_url;
+
+
+        const exportBtn =
+            document.getElementById(
+                "exportBtn"
+            );
+
+        exportBtn.href =
+            `/api/project/${data.project_id}/export`;
+
+
+        const copyPreviewBtn =
+            document.getElementById(
+                "copyPreviewBtn"
+            );
+
+        copyPreviewBtn.onclick =
+            async () => {
+
+                await copyText(
+                    previewUrl
+                );
+
+                showToast(
+                    "Preview link copied.",
+                    "success"
+                );
+
+            };
+
+
+        const deleteBtn =
+            document.getElementById(
+                "deleteCurrentBtn"
+            );
+
+        deleteBtn.onclick =
+            () => deleteProject(
+                data.project_id,
+                true
+            );
+
+
+        const pageList =
+            document.getElementById(
+                "pageList"
+            );
+
+        pageList.innerHTML = "";
+
+
+        data.pages.forEach(
+            (page, index) => {
+
+                const item =
+                    document.createElement("a");
+
+                item.className =
+                    "page-item";
+
+                item.href =
+                    `/preview/${data.project_id}/page/${page.id}`;
+
+                item.target =
+                    "_blank";
+
+                item.innerHTML = `
+                    <div class="page-number">
+                        ${index + 1}
+                    </div>
+
+                    <div class="page-info">
+                        <strong>
+                            ${escapeHtml(page.title)}
+                        </strong>
+
+                        <span>
+                            ${escapeHtml(page.url)}
+                        </span>
+                    </div>
+
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                `;
+
+                pageList.appendChild(
+                    item
+                );
+
+            }
+        );
+
+
+        resultSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
         });
-    } else {
-        console.error("❌ ERROR: Form with ID 'create-form' not found!"); // <-- DEBUG 9
+
     }
-    
-    // Copy URL functionality
-    document.getElementById('copy-btn')?.addEventListener('click', function() {
-        const urlInput = document.getElementById('result-url');
-        urlInput.select();
-        document.execCommand('copy');
-        showNotification('URL copied to clipboard!', 'success');
-    });
-    
-    // QR Code generation
-    document.getElementById('qr-btn')?.addEventListener('click', function() {
-        const url = document.getElementById('result-url').value;
-        if (url) {
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-            const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
-            document.getElementById('qr-image').src = qrUrl;
-            qrModal.show();
+
+
+    /* ----------------------------
+       PROJECT LIST
+    ----------------------------- */
+
+    async function loadProjects() {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/projects"
+                );
+
+            const data =
+                await response.json();
+
+            if (!data.success) {
+                return;
+            }
+
+            projectsGrid.innerHTML = "";
+
+
+            let totalPages = 0;
+            let totalAssets = 0;
+
+            data.projects.forEach(
+                project => {
+
+                    totalPages +=
+                        project.pages_count || 0;
+
+                    totalAssets +=
+                        project.assets_count || 0;
+
+
+                    const card =
+                        document.createElement("div");
+
+                    card.className =
+                        "project-card";
+
+                    const date =
+                        new Date(
+                            project.created_at
+                        );
+
+                    card.innerHTML = `
+                        <div class="project-card-top">
+
+                            <div class="project-icon">
+                                <i class="fa-solid fa-globe"></i>
+                            </div>
+
+                            <button
+                                class="card-delete"
+                                title="Delete project">
+
+                                <i class="fa-regular fa-trash-can"></i>
+
+                            </button>
+
+                        </div>
+
+                        <h3>
+                            ${escapeHtml(project.title)}
+                        </h3>
+
+                        <p class="project-url">
+                            ${escapeHtml(project.source_url)}
+                        </p>
+
+                        <div class="project-meta">
+
+                            <span>
+                                <i class="fa-regular fa-file-lines"></i>
+                                ${project.pages_count} Pages
+                            </span>
+
+                            <span>
+                                <i class="fa-regular fa-image"></i>
+                                ${project.assets_count} Assets
+                            </span>
+
+                        </div>
+
+                        <div class="project-card-footer">
+
+                            <span>
+                                ${date.toLocaleDateString()}
+                            </span>
+
+                            <button class="open-project">
+                                Open
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+
+                        </div>
+                    `;
+
+
+                    card.querySelector(
+                        ".open-project"
+                    ).addEventListener(
+                        "click",
+                        () => {
+                            openProject(
+                                project.id
+                            );
+                        }
+                    );
+
+
+                    card.querySelector(
+                        ".card-delete"
+                    ).addEventListener(
+                        "click",
+                        (event) => {
+
+                            event.stopPropagation();
+
+                            deleteProject(
+                                project.id,
+                                false
+                            );
+
+                        }
+                    );
+
+
+                    projectsGrid.appendChild(
+                        card
+                    );
+
+                }
+            );
+
+
+            emptyState.classList.toggle(
+                "hidden",
+                data.projects.length > 0
+            );
+
+
+            document.getElementById(
+                "projectCount"
+            ).textContent =
+                data.projects.length;
+
+
+            document.getElementById(
+                "pageCount"
+            ).textContent =
+                totalPages;
+
+
+            document.getElementById(
+                "assetCount"
+            ).textContent =
+                totalAssets;
+
+
+        } catch (error) {
+
+            console.error(
+                "Could not load projects:",
+                error
+            );
+
         }
-    });
-    
-    // Delete campaign
-    document.getElementById('delete-btn')?.addEventListener('click', function() {
-        if (confirm('Are you sure you want to delete this campaign?')) {
-            document.getElementById('result-container').classList.add('d-none');
-            document.getElementById('placeholder').classList.remove('d-none');
-            document.getElementById('target-url').value = '';
-            showNotification('Campaign deleted successfully!', 'info');
+
+    }
+
+
+    /* ----------------------------
+       OPEN PROJECT
+    ----------------------------- */
+
+    async function openProject(
+        projectId
+    ) {
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/project/${projectId}`
+                );
+
+            const data =
+                await response.json();
+
+            if (!data.success) {
+                throw new Error(
+                    data.error
+                );
+            }
+
+
+            currentProject = {
+                project_id:
+                    projectId,
+
+                title:
+                    data.project.title,
+
+                source_url:
+                    data.project.source_url,
+
+                pages_count:
+                    data.project.pages_count,
+
+                assets_count:
+                    data.project.assets_count,
+
+                pages:
+                    data.pages,
+
+                preview_url:
+                    `/preview/${projectId}`
+            };
+
+
+            renderResult(
+                currentProject
+            );
+
+        } catch (error) {
+
+            showToast(
+                "Could not open this project.",
+                "error"
+            );
+
         }
-    });
-    
-    // Listen for victim activity updates
-    socket.on('update', function(data) {
-        console.log('Received victim activity:', data);
-        addVictimCard(data);
-    });
-    
-    // Listen for permission updates
-    socket.on('permission_update', function(data) {
-        console.log('Received permission update:', data);
-        updateVictimCard(data.campaign_id, 'permission', data.permission);
-    });
-    
-    // Listen for media access updates
-    socket.on('media_access_granted', function(data) {
-        console.log('Media access granted:', data);
-        showMediaAccessAlert(data);
-        updateVictimCard(data.campaign_id, 'media', 'access_granted');
-    });
+
+    }
+
+
+    /* ----------------------------
+       DELETE PROJECT
+    ----------------------------- */
+
+    async function deleteProject(
+        projectId,
+        isCurrent
+    ) {
+
+        const confirmed =
+            confirm(
+                "Delete this project permanently?"
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/project/${projectId}`,
+                    {
+                        method:
+                            "DELETE"
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!data.success) {
+                throw new Error();
+            }
+
+
+            if (isCurrent) {
+
+                resultSection.classList.add(
+                    "hidden"
+                );
+
+                currentProject = null;
+
+            }
+
+
+            showToast(
+                "Project deleted.",
+                "success"
+            );
+
+            loadProjects();
+
+
+        } catch (error) {
+
+            showToast(
+                "Could not delete the project.",
+                "error"
+            );
+
+        }
+
+    }
+
+
+    /* ----------------------------
+       REFRESH
+    ----------------------------- */
+
+    refreshBtn.addEventListener(
+        "click",
+        () => {
+
+            refreshBtn.classList.add(
+                "rotating"
+            );
+
+            loadProjects().finally(
+                () => {
+
+                    setTimeout(
+                        () => {
+                            refreshBtn.classList.remove(
+                                "rotating"
+                            );
+                        },
+                        500
+                    );
+
+                }
+            );
+
+        }
+    );
+
+
+    /* ----------------------------
+       ABOUT MODAL
+    ----------------------------- */
+
+    aboutBtn.addEventListener(
+        "click",
+        () => {
+
+            aboutModal.classList.remove(
+                "hidden"
+            );
+
+        }
+    );
+
+
+    closeAbout.addEventListener(
+        "click",
+        closeAboutModal
+    );
+
+
+    aboutModal.addEventListener(
+        "click",
+        (event) => {
+
+            if (
+                event.target ===
+                aboutModal
+            ) {
+                closeAboutModal();
+            }
+
+        }
+    );
+
+
+    function closeAboutModal() {
+
+        aboutModal.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    /* ----------------------------
+       COPY
+    ----------------------------- */
+
+    async function copyText(text) {
+
+        if (
+            navigator.clipboard &&
+            window.isSecureContext
+        ) {
+
+            await navigator.clipboard.writeText(
+                text
+            );
+
+            return;
+        }
+
+
+        const textarea =
+            document.createElement(
+                "textarea"
+            );
+
+        textarea.value =
+            text;
+
+        document.body.appendChild(
+            textarea
+        );
+
+        textarea.select();
+
+        document.execCommand(
+            "copy"
+        );
+
+        textarea.remove();
+
+    }
+
+
+    /* ----------------------------
+       TOAST
+    ----------------------------- */
+
+    function showToast(
+        message,
+        type = "success"
+    ) {
+
+        const container =
+            document.getElementById(
+                "toastContainer"
+            );
+
+        const toast =
+            document.createElement(
+                "div"
+            );
+
+        toast.className =
+            `toast-message ${type}`;
+
+        toast.innerHTML = `
+            <i class="${
+                type === "success"
+                    ? "fa-solid fa-circle-check"
+                    : "fa-solid fa-circle-exclamation"
+            }"></i>
+
+            <span>
+                ${escapeHtml(message)}
+            </span>
+        `;
+
+        container.appendChild(
+            toast
+        );
+
+
+        setTimeout(
+            () => {
+
+                toast.classList.add(
+                    "toast-hide"
+                );
+
+                setTimeout(
+                    () => toast.remove(),
+                    250
+                );
+
+            },
+            3500
+        );
+
+    }
+
+
+    function escapeHtml(value) {
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.textContent =
+            value || "";
+
+        return div.innerHTML;
+
+    }
+
+
+    loadProjects();
+
 });
-
-// Simple notification function
-function showNotification(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        \${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
-    const container = document.querySelector('.container');
-    container.insertBefore(alertDiv, container.firstChild);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 5000);
-}
-
-// Function to add or update victim card
-function addVictimCard(data) {
-    const container = document.getElementById('victims-container');
-    
-    // Check if card already exists
-    let card = document.getElementById(`victim-${data.campaign_id}`);
-    
-    if (!card) {
-        // Create new card if it doesn't exist
-        card = document.createElement('div');
-        card.className = 'card mb-3 victim-card';
-        card.id = `victim-${data.campaign_id}`;
-        container.appendChild(card);
-    }
-    
-    // Update card content
-    card.innerHTML = `
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Victim Activity</h5>
-            <span class="badge bg-success">Active</span>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Campaign ID:</strong> \${data.campaign_id}</p>
-                    <p><strong>IP Address:</strong> \${data.ip || 'Unknown'}</p>
-                    <p><strong>Browser:</strong> \${data.user_agent || 'Unknown'}</p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong>Last Action:</strong> \${data.action || 'Unknown'}</p>
-                    <p><strong>Timestamp:</strong> \${new Date(data.timestamp).toLocaleString()}</p>
-                    <p><strong>Permission:</strong> <span id="permission-\${data.campaign_id}">Pending</span></p>
-                    <p><strong>Media Access:</strong> <span id="media-\${data.campaign_id}">Not Requested</span></p>
-                </div>
-            </div>
-            <div class="mt-3">
-                <h6>Activity Log:</h6>
-                <div id="activity-log-\${data.campaign_id}" class="activity-log">
-                    <div class="activity-item">${data.action || 'Page loaded'} - ${new Date(data.timestamp).toLocaleString()}</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Function to update victim card with new information
-function updateVictimCard(campaignId, type, value) {
-    const elementId = type === 'permission' ? `permission-${campaignId}` : `media-${campaignId}`;
-    const element = document.getElementById(elementId);
-    
-    if (element) {
-        if (type === 'permission') {
-            element.textContent = value === 'allowed' ? 'Granted' : 'Blocked';
-            element.className = value === 'allowed' ? 'badge bg-success' : 'badge bg-danger';
-        } else if (type === 'media') {
-            element.textContent = value === 'access_granted' ? 'Granted' : 'Denied';
-            element.className = value === 'access_granted' ? 'badge bg-success' : 'badge bg-danger';
-        }
-    }
-    
-    // Add to activity log
-    const logElement = document.getElementById(`activity-log-${campaignId}`);
-    if (logElement) {
-        const logItem = document.createElement('div');
-        logItem.className = 'activity-item';
-        logItem.textContent = `${type === 'permission' ? 'Permission' : 'Media Access'} ${value} - ${new Date().toLocaleString()}`;
-        logElement.appendChild(logItem);
-    }
-}
-
-// Function to show media access alert
-function showMediaAccessAlert(data) {
-    // Create a modal to show the media stream
-    const modal = document.createElement('div');
-    modal.className = 'modal fade';
-    modal.id = `media-modal-\${data.campaign_id}`;
-    modal.innerHTML = `
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Media Access Granted</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Victim has granted media access. You can now view their camera feed.</p>
-                    <img src="${data.media_stream_url}" alt="Victim Camera Feed" class="img-fluid">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Show the modal
-    const bsModal = new bootstrap.Modal(modal);
-    bsModal.show();
-    
-    // Remove modal from DOM after it's hidden
-    modal.addEventListener('hidden.bs.modal', function() {
-        document.body.removeChild(modal);
-    });
-}
