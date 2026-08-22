@@ -1,788 +1,488 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const analyzeForm = document.getElementById("analyze-form");
+    const websiteUrl = document.getElementById("website-url");
+    const analyzeButton = document.getElementById("analyze-btn");
+    const buttonText = document.getElementById("button-text");
+    const loader = document.getElementById("loader");
+    const resultBox = document.getElementById("result-box");
+    const toast = document.getElementById("toast");
 
-    const analyzeForm =
-        document.getElementById("analyzeForm");
+    let currentProjectId = null;
 
-    const targetUrl =
-        document.getElementById("targetUrl");
+    if (!analyzeForm) {
+        console.error("ERROR: analyze-form not found.");
+        return;
+    }
 
-    const analyzeBtn =
-        document.getElementById("analyzeBtn");
+    function showToast(message, isError = false) {
+        if (!toast) {
+            alert(message);
+            return;
+        }
 
-    const projectsGrid =
-        document.getElementById("projectsGrid");
+        toast.textContent = message;
+        toast.className = isError
+            ? "toast error show"
+            : "toast show";
 
-    const emptyState =
-        document.getElementById("emptyState");
+        clearTimeout(window.shadowNetToastTimer);
 
-    const resultSection =
-        document.getElementById("resultSection");
+        window.shadowNetToastTimer = setTimeout(() => {
+            toast.className = "toast";
+        }, 5000);
+    }
 
-    const refreshBtn =
-        document.getElementById("refreshBtn");
+    function setLoading(loading) {
+        if (analyzeButton) {
+            analyzeButton.disabled = loading;
+        }
 
-    const aboutBtn =
-        document.getElementById("aboutBtn");
+        if (loader) {
+            loader.classList.toggle("show", loading);
+        }
 
-    const aboutModal =
-        document.getElementById("aboutModal");
+        if (buttonText) {
+            buttonText.textContent = loading
+                ? "Analyzing..."
+                : "Analyze Site";
+        }
+    }
 
-    const closeAbout =
-        document.getElementById("closeAbout");
+    async function readJsonResponse(response) {
+        const contentType =
+            response.headers.get("content-type") || "";
 
+        const text = await response.text();
 
-    let currentProject = null;
+        if (!text) {
+            return {};
+        }
 
+        if (contentType.includes("application/json")) {
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                console.error("Invalid JSON:", error);
+                throw new Error(
+                    "Server returned an invalid JSON response."
+                );
+            }
+        }
 
-    /* ----------------------------
-       PROJECT ANALYSIS
-    ----------------------------- */
+        console.error("Non-JSON server response:", text);
+
+        throw new Error(
+            "Server error occurred. Check the terminal for details."
+        );
+    }
 
     analyzeForm.addEventListener("submit", async (event) => {
-
         event.preventDefault();
+        event.stopPropagation();
 
-        const url = targetUrl.value.trim();
+        let url = websiteUrl.value.trim();
 
         if (!url) {
             showToast(
                 "Please enter a website URL.",
-                "error"
+                true
             );
-
             return;
         }
 
+        // User agar example.com likhe to automatically https add ho
+        if (!/^https?:\/\//i.test(url)) {
+            url = "https://" + url;
+            websiteUrl.value = url;
+        }
+
+        resultBox?.classList.remove("show");
         setLoading(true);
 
         try {
+            console.log(
+                "Sending analyze request:",
+                url
+            );
 
-            const response =
-                await fetch("/api/analyze", {
-
+            const response = await fetch(
+                "/api/analyze",
+                {
                     method: "POST",
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
 
                     body: JSON.stringify({
                         url: url
                     })
-
-                });
+                }
+            );
 
             const data =
-                await response.json();
+                await readJsonResponse(response);
 
-            if (!data.success) {
+            console.log(
+                "Analyze response:",
+                data
+            );
+
+            if (!response.ok || !data.success) {
                 throw new Error(
                     data.error ||
-                    "Website analysis failed."
+                    `Analysis failed (HTTP ${response.status}).`
                 );
             }
 
-            currentProject = data;
+            if (!data.project_id) {
+                throw new Error(
+                    "Server did not return a project ID."
+                );
+            }
 
-            renderResult(data);
+            currentProjectId = data.project_id;
 
-            targetUrl.value = "";
+            // Result title
+            const resultTitle =
+                document.getElementById("result-title");
+
+            if (resultTitle) {
+                resultTitle.textContent =
+                    data.title ||
+                    "Project ready";
+            }
+
+            // Result description
+            const resultDescription =
+                document.getElementById(
+                    "result-description"
+                );
+
+            if (resultDescription) {
+                resultDescription.textContent =
+                    data.description ||
+                    "Website replica project created successfully.";
+            }
+
+            // Pages count
+            const resultPages =
+                document.getElementById("result-pages");
+
+            if (resultPages) {
+                resultPages.textContent =
+                    data.pages_count ?? 0;
+            }
+
+            // Assets count
+            const resultAssets =
+                document.getElementById("result-assets");
+
+            if (resultAssets) {
+                resultAssets.textContent =
+                    data.assets_count ?? 0;
+            }
+
+            // Preview URL
+            const previewUrl =
+                data.preview_url ||
+                `/preview/${currentProjectId}`;
+
+            const previewButton =
+                document.getElementById("preview-btn");
+
+            if (previewButton) {
+                previewButton.href = previewUrl;
+            }
+
+            // First page preview
+            const directPreviewButton =
+                document.getElementById(
+                    "direct-preview-btn"
+                );
+
+            const firstPagePreview =
+                data.first_page_preview ||
+                (
+                    Array.isArray(data.pages) &&
+                    data.pages.length > 0
+                        ? data.pages[0].preview_url
+                        : null
+                );
+
+            if (directPreviewButton) {
+                if (firstPagePreview) {
+                    directPreviewButton.href =
+                        firstPagePreview;
+
+                    directPreviewButton.style.display =
+                        "inline-flex";
+                } else {
+                    directPreviewButton.style.display =
+                        "none";
+                }
+            }
+
+            // Export
+            const exportButton =
+                document.getElementById("export-btn");
+
+            if (exportButton) {
+                exportButton.href =
+                    `/api/project/${currentProjectId}/export`;
+            }
+
+            // Delete
+            const deleteButton =
+                document.getElementById(
+                    "delete-current-btn"
+                );
+
+            if (deleteButton) {
+                deleteButton.dataset.projectId =
+                    currentProjectId;
+            }
+
+            // Show result
+            if (resultBox) {
+                resultBox.classList.add("show");
+
+                setTimeout(() => {
+                    resultBox.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+                }, 150);
+            }
 
             showToast(
-                "Website analysis completed successfully.",
-                "success"
+                "Project created successfully."
             );
 
-            loadProjects();
+            if (
+                typeof loadProjects === "function"
+            ) {
+                loadProjects();
+            }
 
         } catch (error) {
+            console.error(
+                "ShadowNet analyze error:",
+                error
+            );
 
             showToast(
                 error.message ||
                 "Something went wrong.",
-                "error"
-            );
-
-        } finally {
-
-            setLoading(false);
-
-        }
-
-    });
-
-
-    /* ----------------------------
-       LOADING STATE
-    ----------------------------- */
-
-    function setLoading(loading) {
-
-        const btnText =
-            analyzeBtn.querySelector(".btn-text");
-
-        const btnLoader =
-            analyzeBtn.querySelector(".btn-loader");
-
-        analyzeBtn.disabled = loading;
-
-        btnText.classList.toggle(
-            "hidden",
-            loading
-        );
-
-        btnLoader.classList.toggle(
-            "hidden",
-            !loading
-        );
-
-    }
-
-
-    /* ----------------------------
-       RESULT RENDER
-    ----------------------------- */
-
-    function renderResult(data) {
-
-        resultSection.classList.remove(
-            "hidden"
-        );
-
-        document.getElementById(
-            "resultTitle"
-        ).textContent =
-            data.title ||
-            "Website Replica Ready";
-
-        document.getElementById(
-            "resultUrl"
-        ).textContent =
-            data.source_url;
-
-        document.getElementById(
-            "resultPages"
-        ).textContent =
-            data.pages_count;
-
-        document.getElementById(
-            "resultAssets"
-        ).textContent =
-            data.assets_count;
-
-
-        const previewUrl =
-            window.location.origin +
-            data.preview_url;
-
-
-        const openPreviewBtn =
-            document.getElementById(
-                "openPreviewBtn"
-            );
-
-        openPreviewBtn.href =
-            data.preview_url;
-
-
-        const exportBtn =
-            document.getElementById(
-                "exportBtn"
-            );
-
-        exportBtn.href =
-            `/api/project/${data.project_id}/export`;
-
-
-        const copyPreviewBtn =
-            document.getElementById(
-                "copyPreviewBtn"
-            );
-
-        copyPreviewBtn.onclick =
-            async () => {
-
-                await copyText(
-                    previewUrl
-                );
-
-                showToast(
-                    "Preview link copied.",
-                    "success"
-                );
-
-            };
-
-
-        const deleteBtn =
-            document.getElementById(
-                "deleteCurrentBtn"
-            );
-
-        deleteBtn.onclick =
-            () => deleteProject(
-                data.project_id,
                 true
             );
 
+        } finally {
+            setLoading(false);
+        }
+    });
 
-        const pageList =
-            document.getElementById(
-                "pageList"
-            );
-
-        pageList.innerHTML = "";
-
-
-        data.pages.forEach(
-            (page, index) => {
-
-                const item =
-                    document.createElement("a");
-
-                item.className =
-                    "page-item";
-
-                item.href =
-                    `/preview/${data.project_id}/page/${page.id}`;
-
-                item.target =
-                    "_blank";
-
-                item.innerHTML = `
-                    <div class="page-number">
-                        ${index + 1}
-                    </div>
-
-                    <div class="page-info">
-                        <strong>
-                            ${escapeHtml(page.title)}
-                        </strong>
-
-                        <span>
-                            ${escapeHtml(page.url)}
-                        </span>
-                    </div>
-
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                `;
-
-                pageList.appendChild(
-                    item
-                );
-
-            }
+    // Delete current project
+    const deleteCurrentButton =
+        document.getElementById(
+            "delete-current-btn"
         );
 
+    if (deleteCurrentButton) {
+        deleteCurrentButton.addEventListener(
+            "click",
+            async () => {
+                const projectId =
+                    currentProjectId ||
+                    deleteCurrentButton.dataset.projectId;
 
-        resultSection.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
+                if (!projectId) {
+                    showToast(
+                        "No project selected.",
+                        true
+                    );
+                    return;
+                }
 
-    }
-
-
-    /* ----------------------------
-       PROJECT LIST
-    ----------------------------- */
-
-    async function loadProjects() {
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/projects"
+                const confirmed = confirm(
+                    "Delete this project permanently?"
                 );
 
-            const data =
-                await response.json();
+                if (!confirmed) {
+                    return;
+                }
 
-            if (!data.success) {
+                try {
+                    const response =
+                        await fetch(
+                            `/api/project/${projectId}`,
+                            {
+                                method: "DELETE"
+                            }
+                        );
+
+                    const data =
+                        await readJsonResponse(
+                            response
+                        );
+
+                    if (
+                        !response.ok ||
+                        !data.success
+                    ) {
+                        throw new Error(
+                            data.error ||
+                            "Could not delete project."
+                        );
+                    }
+
+                    currentProjectId = null;
+
+                    resultBox?.classList.remove(
+                        "show"
+                    );
+
+                    showToast(
+                        "Project deleted successfully."
+                    );
+
+                    if (
+                        typeof loadProjects ===
+                        "function"
+                    ) {
+                        loadProjects();
+                    }
+
+                } catch (error) {
+                    console.error(error);
+
+                    showToast(
+                        error.message ||
+                        "Could not delete project.",
+                        true
+                    );
+                }
+            }
+        );
+    }
+
+    // Projects list
+    async function loadProjects() {
+        const container =
+            document.getElementById(
+                "projects-list"
+            );
+
+        if (!container) {
+            return;
+        }
+
+        try {
+            const response =
+                await fetch("/api/projects");
+
+            const data =
+                await readJsonResponse(response);
+
+            if (
+                !response.ok ||
+                !data.success
+            ) {
+                throw new Error(
+                    data.error ||
+                    "Could not load projects."
+                );
+            }
+
+            const projects =
+                data.projects || [];
+
+            if (!projects.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        No projects yet. Analyze an authorized website to begin.
+                    </div>
+                `;
                 return;
             }
 
-            projectsGrid.innerHTML = "";
-
-
-            let totalPages = 0;
-            let totalAssets = 0;
-
-            data.projects.forEach(
-                project => {
-
-                    totalPages +=
-                        project.pages_count || 0;
-
-                    totalAssets +=
-                        project.assets_count || 0;
-
-
-                    const card =
-                        document.createElement("div");
-
-                    card.className =
-                        "project-card";
-
-                    const date =
-                        new Date(
-                            project.created_at
+            container.innerHTML =
+                projects.map((project) => {
+                    const title =
+                        escapeHtml(
+                            project.title ||
+                            "Untitled Website"
                         );
 
-                    card.innerHTML = `
-                        <div class="project-card-top">
+                    const sourceUrl =
+                        escapeHtml(
+                            project.source_url ||
+                            ""
+                        );
 
-                            <div class="project-icon">
-                                <i class="fa-solid fa-globe"></i>
+                    const pageCount =
+                        project.pages_count ?? 0;
+
+                    const previewUrl =
+                        project.preview_url ||
+                        `/preview/${project.id}`;
+
+                    return `
+                        <div class="project">
+                            <div class="project-main">
+                                <h3 class="project-title">
+                                    ${title}
+                                </h3>
+
+                                <div class="project-url">
+                                    ${sourceUrl}
+                                </div>
                             </div>
 
-                            <button
-                                class="card-delete"
-                                title="Delete project">
+                            <div class="project-meta">
+                                <span>
+                                    ${pageCount} page(s)
+                                </span>
 
-                                <i class="fa-regular fa-trash-can"></i>
-
-                            </button>
-
-                        </div>
-
-                        <h3>
-                            ${escapeHtml(project.title)}
-                        </h3>
-
-                        <p class="project-url">
-                            ${escapeHtml(project.source_url)}
-                        </p>
-
-                        <div class="project-meta">
-
-                            <span>
-                                <i class="fa-regular fa-file-lines"></i>
-                                ${project.pages_count} Pages
-                            </span>
-
-                            <span>
-                                <i class="fa-regular fa-image"></i>
-                                ${project.assets_count} Assets
-                            </span>
-
-                        </div>
-
-                        <div class="project-card-footer">
-
-                            <span>
-                                ${date.toLocaleDateString()}
-                            </span>
-
-                            <button class="open-project">
-                                Open
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-
+                                <a
+                                    href="${previewUrl}"
+                                    target="_blank"
+                                    class="project-preview-btn"
+                                >
+                                    Open Preview
+                                </a>
+                            </div>
                         </div>
                     `;
-
-
-                    card.querySelector(
-                        ".open-project"
-                    ).addEventListener(
-                        "click",
-                        () => {
-                            openProject(
-                                project.id
-                            );
-                        }
-                    );
-
-
-                    card.querySelector(
-                        ".card-delete"
-                    ).addEventListener(
-                        "click",
-                        (event) => {
-
-                            event.stopPropagation();
-
-                            deleteProject(
-                                project.id,
-                                false
-                            );
-
-                        }
-                    );
-
-
-                    projectsGrid.appendChild(
-                        card
-                    );
-
-                }
-            );
-
-
-            emptyState.classList.toggle(
-                "hidden",
-                data.projects.length > 0
-            );
-
-
-            document.getElementById(
-                "projectCount"
-            ).textContent =
-                data.projects.length;
-
-
-            document.getElementById(
-                "pageCount"
-            ).textContent =
-                totalPages;
-
-
-            document.getElementById(
-                "assetCount"
-            ).textContent =
-                totalAssets;
-
+                }).join("");
 
         } catch (error) {
-
             console.error(
-                "Could not load projects:",
+                "Projects load error:",
                 error
             );
 
+            container.innerHTML = `
+                <div class="empty-state">
+                    Could not load projects.
+                </div>
+            `;
         }
-
     }
-
-
-    /* ----------------------------
-       OPEN PROJECT
-    ----------------------------- */
-
-    async function openProject(
-        projectId
-    ) {
-
-        try {
-
-            const response =
-                await fetch(
-                    `/api/project/${projectId}`
-                );
-
-            const data =
-                await response.json();
-
-            if (!data.success) {
-                throw new Error(
-                    data.error
-                );
-            }
-
-
-            currentProject = {
-                project_id:
-                    projectId,
-
-                title:
-                    data.project.title,
-
-                source_url:
-                    data.project.source_url,
-
-                pages_count:
-                    data.project.pages_count,
-
-                assets_count:
-                    data.project.assets_count,
-
-                pages:
-                    data.pages,
-
-                preview_url:
-                    `/preview/${projectId}`
-            };
-
-
-            renderResult(
-                currentProject
-            );
-
-        } catch (error) {
-
-            showToast(
-                "Could not open this project.",
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /* ----------------------------
-       DELETE PROJECT
-    ----------------------------- */
-
-    async function deleteProject(
-        projectId,
-        isCurrent
-    ) {
-
-        const confirmed =
-            confirm(
-                "Delete this project permanently?"
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-
-            const response =
-                await fetch(
-                    `/api/project/${projectId}`,
-                    {
-                        method:
-                            "DELETE"
-                    }
-                );
-
-            const data =
-                await response.json();
-
-            if (!data.success) {
-                throw new Error();
-            }
-
-
-            if (isCurrent) {
-
-                resultSection.classList.add(
-                    "hidden"
-                );
-
-                currentProject = null;
-
-            }
-
-
-            showToast(
-                "Project deleted.",
-                "success"
-            );
-
-            loadProjects();
-
-
-        } catch (error) {
-
-            showToast(
-                "Could not delete the project.",
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /* ----------------------------
-       REFRESH
-    ----------------------------- */
-
-    refreshBtn.addEventListener(
-        "click",
-        () => {
-
-            refreshBtn.classList.add(
-                "rotating"
-            );
-
-            loadProjects().finally(
-                () => {
-
-                    setTimeout(
-                        () => {
-                            refreshBtn.classList.remove(
-                                "rotating"
-                            );
-                        },
-                        500
-                    );
-
-                }
-            );
-
-        }
-    );
-
-
-    /* ----------------------------
-       ABOUT MODAL
-    ----------------------------- */
-
-    aboutBtn.addEventListener(
-        "click",
-        () => {
-
-            aboutModal.classList.remove(
-                "hidden"
-            );
-
-        }
-    );
-
-
-    closeAbout.addEventListener(
-        "click",
-        closeAboutModal
-    );
-
-
-    aboutModal.addEventListener(
-        "click",
-        (event) => {
-
-            if (
-                event.target ===
-                aboutModal
-            ) {
-                closeAboutModal();
-            }
-
-        }
-    );
-
-
-    function closeAboutModal() {
-
-        aboutModal.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    /* ----------------------------
-       COPY
-    ----------------------------- */
-
-    async function copyText(text) {
-
-        if (
-            navigator.clipboard &&
-            window.isSecureContext
-        ) {
-
-            await navigator.clipboard.writeText(
-                text
-            );
-
-            return;
-        }
-
-
-        const textarea =
-            document.createElement(
-                "textarea"
-            );
-
-        textarea.value =
-            text;
-
-        document.body.appendChild(
-            textarea
-        );
-
-        textarea.select();
-
-        document.execCommand(
-            "copy"
-        );
-
-        textarea.remove();
-
-    }
-
-
-    /* ----------------------------
-       TOAST
-    ----------------------------- */
-
-    function showToast(
-        message,
-        type = "success"
-    ) {
-
-        const container =
-            document.getElementById(
-                "toastContainer"
-            );
-
-        const toast =
-            document.createElement(
-                "div"
-            );
-
-        toast.className =
-            `toast-message ${type}`;
-
-        toast.innerHTML = `
-            <i class="${
-                type === "success"
-                    ? "fa-solid fa-circle-check"
-                    : "fa-solid fa-circle-exclamation"
-            }"></i>
-
-            <span>
-                ${escapeHtml(message)}
-            </span>
-        `;
-
-        container.appendChild(
-            toast
-        );
-
-
-        setTimeout(
-            () => {
-
-                toast.classList.add(
-                    "toast-hide"
-                );
-
-                setTimeout(
-                    () => toast.remove(),
-                    250
-                );
-
-            },
-            3500
-        );
-
-    }
-
 
     function escapeHtml(value) {
-
         const div =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         div.textContent =
-            value || "";
+            value ?? "";
 
         return div.innerHTML;
-
     }
 
-
+    // Initial projects load
     loadProjects();
-
 });
